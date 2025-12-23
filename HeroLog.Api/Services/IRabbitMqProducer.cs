@@ -11,5 +11,5 @@ public interface IRabbitMqProducer
     /// Publishes a service log to RabbitMQ queue
     /// </summary>
     /// <param name="log">The service log to publish</param>
-    void PublishLog(ServiceLog log);
+    Task PublishLogAsync(ServiceLog log);
 }

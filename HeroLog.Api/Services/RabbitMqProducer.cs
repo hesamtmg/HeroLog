@@ -14,17 +14,29 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
 {
     private readonly RabbitMqSettings _settings;
     private readonly ILogger<RabbitMqProducer> _logger;
-    private readonly IConnection _connection;
-    private readonly IChannel _channel;
+    private IConnection? _connection;
+    private IChannel? _channel;
+    private readonly SemaphoreSlim _initializationSemaphore = new SemaphoreSlim(1, 1);
+    private bool _initialized = false;
     private bool _disposed = false;
 
     public RabbitMqProducer(IOptions<RabbitMqSettings> settings, ILogger<RabbitMqProducer> logger)
     {
         _settings = settings.Value;
         _logger = logger;
+    }
 
+    private async Task EnsureInitializedAsync()
+    {
+        if (_initialized)
+            return;
+
+        await _initializationSemaphore.WaitAsync();
         try
         {
+            if (_initialized)
+                return;
+
             var factory = new ConnectionFactory
             {
                 HostName = _settings.HostName,
@@ -33,17 +45,18 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
                 Password = _settings.Password
             };
 
-            _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-            _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+            _connection = await factory.CreateConnectionAsync();
+            _channel = await _connection.CreateChannelAsync();
 
             // Declare the queue
-            _channel.QueueDeclareAsync(
+            await _channel.QueueDeclareAsync(
                 queue: _settings.QueueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: null).GetAwaiter().GetResult();
+                arguments: null);
 
+            _initialized = true;
             _logger.LogInformation("RabbitMQ connection established to {HostName}:{Port}", _settings.HostName, _settings.Port);
         }
         catch (Exception ex)
@@ -51,13 +64,24 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
             _logger.LogError(ex, "Failed to establish RabbitMQ connection");
             throw;
         }
+        finally
+        {
+            _initializationSemaphore.Release();
+        }
     }
 
     /// <summary>
     /// Publishes a service log to RabbitMQ queue
     /// </summary>
-    public void PublishLog(ServiceLog log)
+    public async Task PublishLogAsync(ServiceLog log)
     {
+        await EnsureInitializedAsync();
+
+        if (_channel == null)
+        {
+            throw new InvalidOperationException("RabbitMQ channel is not initialized");
+        }
+
         try
         {
             var message = JsonSerializer.Serialize(log);
@@ -69,12 +93,12 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
                 ContentType = "application/json"
             };
 
-            _channel.BasicPublishAsync(
+            await _channel.BasicPublishAsync(
                 exchange: string.Empty,
                 routingKey: _settings.QueueName,
                 mandatory: false,
                 basicProperties: properties,
-                body: body).GetAwaiter().GetResult();
+                body: body);
 
             _logger.LogInformation("Published log {LogId} to RabbitMQ queue {QueueName}", log.Id, _settings.QueueName);
         }
@@ -100,6 +124,7 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
         {
             _channel?.Dispose();
             _connection?.Dispose();
+            _initializationSemaphore?.Dispose();
             _logger.LogInformation("RabbitMQ connection disposed");
         }
 

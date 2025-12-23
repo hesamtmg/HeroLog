@@ -29,7 +29,7 @@ public class LogController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public IActionResult PublishLog([FromBody] ServiceLog log)
+    public async Task<IActionResult> PublishLog([FromBody] ServiceLog log)
     {
         try
         {
@@ -62,7 +62,7 @@ public class LogController : ControllerBase
                 log.Timestamp = DateTime.UtcNow;
             }
 
-            _rabbitMqProducer.PublishLog(log);
+            await _rabbitMqProducer.PublishLogAsync(log);
 
             _logger.LogInformation("Successfully published log {LogId} from service {ServiceName}", log.Id, log.ServiceName);
 
