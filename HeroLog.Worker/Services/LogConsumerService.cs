@@ -133,8 +133,15 @@ public class LogConsumerService : BackgroundService
 
         _logger.LogInformation("Started consuming messages from queue: {QueueName}", _rabbitMqSettings.QueueName);
 
-        // Keep the service running
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+        // Keep the service running until cancellation is requested
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Consumer service is shutting down gracefully");
+        }
     }
 
     /// <summary>
@@ -190,7 +197,7 @@ public class LogConsumerService : BackgroundService
         else
         {
             _logger.LogError("Failed to save log {LogId} to both databases", serviceLog.Id);
-            throw new Exception($"Failed to persist log {serviceLog.Id} to any database");
+            throw new InvalidOperationException($"Failed to persist log {serviceLog.Id} to any database");
         }
     }
 

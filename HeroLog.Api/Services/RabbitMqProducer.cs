@@ -46,7 +46,7 @@ public class RabbitMqProducer : IRabbitMqProducer, IDisposable
             };
 
             _connection = await factory.CreateConnectionAsync();
-            _channel = await _connection.CreateChannelAsync();
+            _channel = await _connection.CreateChannelAsync(cancellationToken: CancellationToken.None);
 
             // Declare the queue
             await _channel.QueueDeclareAsync(
