@@ -133,9 +133,9 @@ dotnet run
 ```
 
 The API will start at:
-- HTTPS: https://localhost:7000
-- HTTP: http://localhost:5000
-- Swagger UI: https://localhost:7000/swagger
+- HTTPS: https://localhost:7092
+- HTTP: http://localhost:5218
+- Swagger UI: https://localhost:7092/swagger
 
 **Terminal 2 - Start the Worker**:
 ```bash
@@ -164,7 +164,7 @@ The Worker will start consuming messages from RabbitMQ and persisting them to bo
 
 **cURL Example**:
 ```bash
-curl -X POST https://localhost:7000/api/log \
+curl -X POST https://localhost:7092/api/log \
   -H "Content-Type: application/json" \
   -d '{
     "serviceName": "MyService",
@@ -189,7 +189,7 @@ curl -X POST https://localhost:7000/api/log \
 
 **cURL Example**:
 ```bash
-curl https://localhost:7000/api/log/health
+curl https://localhost:7092/api/log/health
 ```
 
 **Response**:
@@ -204,7 +204,7 @@ curl https://localhost:7000/api/log/health
 
 ### 1. Test API with Swagger
 
-Navigate to https://localhost:7000/swagger and use the interactive UI to test the endpoints.
+Navigate to https://localhost:7092/swagger and use the interactive UI to test the endpoints.
 
 ### 2. Test with PowerShell
 
@@ -217,7 +217,7 @@ $body = @{
     additionalData = '{"testKey": "testValue"}'
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "https://localhost:7000/api/log" `
+Invoke-RestMethod -Uri "https://localhost:7092/api/log" `
     -Method Post `
     -Body $body `
     -ContentType "application/json" `
